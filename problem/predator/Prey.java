@@ -5,6 +5,8 @@
 package problem.predator;
 
 import java.util.ArrayList;
+import java.util.List;
+
 import problem.RNG;
 import problem.learning.AgentType;
 
@@ -105,4 +107,41 @@ public class Prey extends Animal {
     public double shapingNormalization(int s) {
         return 1.0;
     }
+    
+    
+    @Override
+	public int numberVisits(double[] state) {
+		// TODO Auto-generated method stub
+		return -1;
+	}
+
+	@Override
+	public boolean checkAsk(double[] state) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public int checkAdvise(double[] state, double[][] Qs) {
+		// TODO Auto-generated method stub
+		return -1;
+	}
+
+	@Override
+	public int adviseAction(double[] state, double[][] Qs, int adviseeAction) {
+		// TODO Auto-generated method stub
+		return -1;
+	}
+
+	@Override
+	public int combineAdvice(List<Integer> advised) {
+		// TODO Auto-generated method stub
+		return -1;
+	}
+
+	@Override
+	public void setupAdvising(int agentIndex, Animal[] allAgents) {
+		// TODO Auto-generated method stub
+		
+	}
 }

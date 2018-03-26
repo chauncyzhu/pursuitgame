@@ -43,7 +43,7 @@ public class PredatorWorld extends Problem{
                 	//创建一个非空坐标的猎物，同时默认是agent为Q learning agent，同时仅接受环境的reward
                     a = new Prey(this, size, RNG.randomInt(size), RNG.randomInt(size));
                 } while (occupied(a));
-                this.aPreys[i] = a;
+                this.aPreys[i] = a;               
                 this.map[a.y][a.x] = a; //并放到map中
             }
             Animal a;
@@ -51,9 +51,16 @@ public class PredatorWorld extends Problem{
             	//创建捕食者，agent的reward类型由外部指定，
                 a = new Predator(this, type, objectives, size, RNG.randomInt(size), RNG.randomInt(size));
             } while (occupied(a));
+            
             this.aPredators[i] = a;
             this.map[a.y][a.x] = a;
         }
+        
+        //设置agent的队友
+        for(int i=0; i<nrPredators; i++){
+        	this.aPredators[i].setupAdvising(i, this.aPredators);
+        }
+        
     }
     
     public int getSize(){
@@ -174,7 +181,7 @@ public class PredatorWorld extends Problem{
         return iteration;
     }
     
-    //check if the prey is caught
+    //check if the prey is caught，同时应该调用clear方法
     public boolean isGoalReached(){
         for(int i=0; i<aPredators.length; i++){
             for(int j=0; j<aPreys.length; j++){

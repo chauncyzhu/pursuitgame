@@ -3,18 +3,23 @@ package problem.predator;
 import java.util.*;
 
 public class AdviceUtil {
-	private List<AdhocTD> advisors = null;
+	private List<Animal> advisors = null;
 	
-	public void setupAdvisors(List<AdhocTD> advisors){
+	public void setupAdvisors(List<Animal> advisors){
 		this.advisors = advisors;
 	}
 	
-	public List<Integer> ask_advice(double[] state, int action){
+	public List<Integer> askAdvice(double[] state, double[][] Qs, int action){
 		List<Integer> advice = new ArrayList<>();
 		
-		for(AdhocTD ad:advisors){
-			a = ad.
+		for(Animal ad:advisors){
+			int a = ad.adviseAction(state, Qs, action);
+//			System.out.println("adviseaction:"+a);
+			if(a != -1){
+				advice.add(a);
+			}
 		}
+		return advice;
 	}
 		
 

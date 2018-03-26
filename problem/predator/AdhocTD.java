@@ -1,7 +1,7 @@
 package problem.predator;
 
 import java.util.*;
-
+import problem.predator.AdviceUtil;
 import problem.RNG;
 import problem.learning.AgentType;
 import problem.learning.Problem;
@@ -11,9 +11,23 @@ public class AdhocTD extends Predator{
 	private int budgetAdvise;
 	private int spentBudgetAsk;
 	private int spentBudgetAdvise;
+	
+	private boolean informAction;
+	private AdviceUtil adviceObject = null;
 	private Map<double[], Integer> visitTable = new HashMap<>();
 	private List<double[]> advisedState = new ArrayList<>();
     
+	public AdhocTD(PredatorWorld pw, AgentType type, int[] objectives, int size, int x, int y){
+        super(pw, type, objectives, size, x, y);
+        
+        budgetAsk = 100;
+        budgetAdvise = 100;
+        spentBudgetAsk = 0;
+        spentBudgetAdvise = 0;
+        informAction = false;
+        
+    }
+	
 	/**
 	 * 返回访问过的state的次数
 	 * @param state 当前访问的state
@@ -22,16 +36,7 @@ public class AdhocTD extends Predator{
 	public int numberVisits(double[] state){
 		return visitTable.getOrDefault(state, 0);
 	}
-
-    public AdhocTD(PredatorWorld pw, AgentType type, int[] objectives, int size, int x, int y){
-        super(pw, type, objectives, size, x, y);
-        
-        budgetAsk = 0;
-        budgetAdvise = 0;
-        spentBudgetAsk = 0;
-        spentBudgetAdvise = 0;
-        
-    }
+	
     
     /**
      * 查看自己在当前state下是否可以请求advice
@@ -39,7 +44,7 @@ public class AdhocTD extends Predator{
      * @return true即可以请求建议，false则不能
      */
     public boolean checkAsk(double[] state){
-    	if(advisedState.contains(state)){  //如果当前的game已经给这个提供建议了则不需要再次提供
+    	if(!advisedState.contains(state)){  //如果当前的game已经给这个提供建议了则不需要再次提供
     		int numberVisits =  numberVisits(state);
         	if(numberVisits == 0){
         		return true;
@@ -62,6 +67,8 @@ public class AdhocTD extends Predator{
      * @param state
      */
     public int checkAdvise(double[] state, double[][] Qs){
+//    	System.out.println("advisedAction:"+state.length+"---QS:"+Qs.toString());
+
     	int numberVisits = numberVisits(state);
     	if(numberVisits == 0){
     		return -1;  //返回不在范围内的action，可能不能用-1来表示，因为这里除了0，1，2，3其他的表示为stay
@@ -70,6 +77,7 @@ public class AdhocTD extends Predator{
         double maxQ = -Double.MAX_VALUE;
         double minQ = Double.MAX_VALUE;
         
+        //如果Qs有多个object为什么只取第一个？
         for(int i=0; i<Qs[0].length; i++){
             if(Qs[0][i] >= maxQ){
             	maxQ = Qs[0][i];
@@ -86,8 +94,11 @@ public class AdhocTD extends Predator{
         double value = (Math.sqrt(numberVisits) * diffQ);
         
         double prob = 1 - (Math.pow((1 + param),-value));
+        
+        double now_prob = Math.random();
+//        System.out.println("adhoctd checkAdvise");
 
-        if(Math.random() < prob){
+        if(now_prob < prob){
             int advisedAction = actionSelection(Qs);
             return advisedAction;
         }            
@@ -104,7 +115,11 @@ public class AdhocTD extends Predator{
      * @return 返回自己给出的建议
      */
     public int adviseAction(double[] state, double[][] Qs, int adviseeAction){
+//    	System.out.println("adhoctd advisedAction");
+
         if(spentBudgetAdvise < budgetAdvise){
+//        	System.out.println("advisedAction:"+state+"---QS:"+Qs.toString());
+
         	int advisedAction = checkAdvise(state, Qs);
         	if(advisedAction != -1){
         		if(adviseeAction == -1 || advisedAction != adviseeAction){
@@ -116,7 +131,50 @@ public class AdhocTD extends Predator{
         
         return -1;
     }
-       
+    
+    
+    /**
+     * 设置自己可以询问的friend
+     * @param agentIndex
+     * @param allAgents
+     */
+    @Override
+    public void setupAdvising(int agentIndex, Animal[] allAgents){
+    	adviceObject = new AdviceUtil();
+        
+    	List<Animal> advisors = new ArrayList<Animal>();
+    	for(int i=0;i<allAgents.length;i++){
+    		if(i != agentIndex){
+    			advisors.add(allAgents[i]);
+    		}
+    	}
+    	adviceObject.setupAdvisors(advisors);
+    }
+    
+    
+    /**
+     * 从多个advice中选择一个advice
+     * @param advised
+     * @return
+     */
+    public int combineAdvice(List<Integer> advised){  	
+    	int maxcount = -Integer.MAX_VALUE;
+        ArrayList<Integer> ibest = new ArrayList <Integer>();
+
+    	for(Integer value:advised){
+    		int count = Collections.frequency(advised, value);
+    		if(count >= maxcount){
+    			if(count > maxcount){
+        			ibest.clear();
+    			}
+        		ibest.add(value);
+        		maxcount = count;
+    		}
+    	}
+    	int b = ibest.get(RNG.randomInt(ibest.size()));   //如果有多个最优值，则选取一个action，但是在原文中则是随机选取
+        return b;
+    }
+    	
     
     
      /**
@@ -131,30 +189,33 @@ public class AdhocTD extends Predator{
             curPot[0] = scalarizedShaping();
         } else {
             for(int o=0; o<nrObjectives; o++){
-                curPot[o] = shaping(objectivesToUse[o]);
+                curPot[o] = shaping(objectivesToUse[o]);   //noshaping只有一个元素0，return的也是0
             }
         }
         	
         //applies each time a different shaping to the base reward
-        double[] delta = new double[nrObjectives];
+        double[] delta = new double[nrObjectives];   //如果有多个不同的shaping
         //delta = r + gamma F(s') - F(s)
         for(int o=0; o<nrObjectives; o++){
-            delta[o] = reward + gamma*curPot[o] - prevPot[o];
+            delta[o] = reward + gamma*curPot[o] - prevPot[o];  //对于noshaping，最终还是reward+0
         }
         
         //delta = r + gamma F(s') - F(s) - Q(s,a)
         for (int i = 0; i < prevFa.length; i++) {
             for(int o=0; o<nrObjectives; o++){
-                delta[o] -= theta[o][prevFa[i]];   //这个是用来更新参数的吗？
+                delta[o] -= theta[o][prevFa[i]];   //prevFa存储的是上一个state-action的tilecoing，后面的相乘是计算Q值
             }
         }
 
         double[] state = getState();
+        //添加该state到访问过的state中去
+        visitTable.put(state, numberVisits(state)+1);
+        
         
         //finds activated weights for each action
         int[][] Fas = new int[prob.getNumActions()][];
         for(int i=0; i<prob.getNumActions(); i++){
-            Fas[i] = tileCoding(state, i);
+            Fas[i] = tileCoding(state, i);    //对于当前state的每一个state-action pair
         }
         
         //will store Q-values for each objective-action pair (given current state)
@@ -168,75 +229,105 @@ public class AdhocTD extends Predator{
         for(int i=0; i<prob.getNumActions(); i++){
             for(int o=0; o<nrObjectives; o++){
                 for (int j = 0; j < Fas[i].length; j++) {
-                    Qs[o][i] += theta[o][Fas[i][j]];   //这个才是正常的Q learning
+                    Qs[o][i] += theta[o][Fas[i][j]];   //计算每个action对应的Q值，主要是这里的theta来计算Q值
                 }
                 if(Qs[o][i] > best[o]){
-                    best[o] = Qs[o][i];   //这里是该state下所有action中最大的Q值
+                    best[o] = Qs[o][i];   //每个Objectives最好的Q值
                 }
             }
         }
 
         //delta = r + gamma F(s') - F(s) + gamma max_a Q(s',a) - Q(s,a)
         for(int o=0; o<nrObjectives; o++){
-            delta[o] += gamma * best[o];
+            delta[o] += gamma * best[o];   //这里实际上还是Q learning的形式，对于noshaping而言，gamma F(s') - F(s)这一部分为0
         }
 
         //update weights theta = alpha delta e
         for(int o=0; o<nrObjectives; o++){
             for (int i = 0; i < theta[o].length; i++) {
-                theta[o][i] += alpha * delta[o] * es[o][i];
+                theta[o][i] += alpha * delta[o] * es[o][i];   //es是Q(lambda)中的lambda部分
             }
         }
         
-        //action selection，agent先看自己是否需要进行请求advice
-        boolean ask = checkAsk(state);
-        if(ask){
-        	
-        }
-        	
         
+        Qs = new double[nrObjectives][prob.getNumActions()];  //更新theta后的Q值，实际上就是对每个action而言
+        //each tile separately
+        double weights[][][] = new double[nrObjectives][prob.getNumActions()][nrTiles];
         
-        int action = 0;
-        //greedy
-        if (RNG.randomDouble() > epsilon) {
-            Qs = new double[nrObjectives][prob.getNumActions()];
-
-            //each tile separately
-            double weights[][][] = new double[nrObjectives][prob.getNumActions()][nrTiles];
-            
-            for(int i=0; i<prob.getNumActions(); i++){
-                for (int j = 0; j < Fas[i].length; j++) {
-                    for(int o=0; o<nrObjectives; o++){
-                        Qs[o][i] += theta[o][Fas[i][j]];
-                        weights[o][i][j] = theta[o][Fas[i][j]];
-                    }
+        for(int i=0; i<prob.getNumActions(); i++){
+            for (int j = 0; j < Fas[i].length; j++) {
+                for(int o=0; o<nrObjectives; o++){
+                    Qs[o][i] += theta[o][Fas[i][j]];
+                    weights[o][i][j] = theta[o][Fas[i][j]];
                 }
             }
-            //adaptive or random objective selection + action selection
-            if(type == AgentType.AOS || type == AgentType.ROS){
-                action = adaptiveObjectiveSelection(Qs, weights);
-            //regular action selection
-            } else if(type == AgentType.NoShaping || type == AgentType.SingleShaping || type == AgentType.Linear || type == AgentType.BestLinear){
-                action = actionSelection(Qs);
-            }
-            
-            //decay traces
-            for(int o=0; o<nrObjectives; o++){
-                for (int i = 0; i < es[o].length; i++) {
-                    es[o][i] *= gamma * lambda;
-                    if (es[o][i] < 0.000000001) {
-                        es[o][i] = 0;
-                    }
-                }
-            }
-        //random
-        } else {
-            action = RNG.randomInt(prob.getNumActions());
-            //resets all traces. we should check whether the random action 
-            //happens to be greedy wrt to one of the objectives
-            resetEs();
         }
         
+        //action selection，agent先看自己是否需要进行请求advice，这里的QS应该用更新后的Qs
+        int action = 0;    //初始化action
+        
+        if(spentBudgetAsk < budgetAsk){
+        	boolean ask = checkAsk(state);
+//            System.out.println("wether agent can ask:"+ask);
+        	if(ask){
+            	int normalAction;
+            	if(informAction){
+            		normalAction = super.actionSelection(Qs);
+            	}else{
+            		normalAction = -1;
+            	}
+            	
+            	List<Integer> advised = adviceObject.askAdvice(state, Qs, normalAction);
+//            	System.out.println("ask:"+ask+"---advised:"+advised);
+            	if(advised.size() > 0){
+            		try{
+//            			advisedState.add(state);   //将已经advice过的state放进去
+            			spentBudgetAsk += 1;
+            			action = combineAdvice(advised);
+            			
+//            			System.out.println("action:"+action);
+            			//只是把这个advice当作是探索的一部分？？
+                        resetEs();
+            		}catch (Exception e) {
+						System.out.println("Exception when combining the advice"+advised.toString());
+					}
+            	}
+            	if(action == 0 && informAction){
+            		action = normalAction;
+            	}
+            }
+        }
+        
+        if(action == 0){  //如果没有给出advice，则
+        	//greedy
+            if (RNG.randomDouble() > epsilon) {
+                //adaptive or random objective selection + action selection
+                if(type == AgentType.AOS || type == AgentType.ROS){
+                    action = adaptiveObjectiveSelection(Qs, weights);
+                //regular action selection
+                } else if(type == AgentType.NoShaping || type == AgentType.SingleShaping || type == AgentType.Linear || type == AgentType.BestLinear){
+                    action = actionSelection(Qs);
+                }
+                
+                //decay traces
+                for(int o=0; o<nrObjectives; o++){
+                    for (int i = 0; i < es[o].length; i++) {
+                        es[o][i] *= gamma * lambda;
+                        if (es[o][i] < 0.000000001) {
+                            es[o][i] = 0;
+                        }
+                    }
+                }
+            //random
+            } else {
+                action = RNG.randomInt(prob.getNumActions());
+                //resets all traces. we should check whether the random action 
+                //happens to be greedy wrt to one of the objectives
+                resetEs();   //重新计算es，似乎不把random action算进去，只算greedy action
+            }       	
+        }
+        
+//        System.out.println("action:"+action);
         //s' = s
         prevFa = tileCoding(state, action);
         prevAction = action;

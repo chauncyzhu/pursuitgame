@@ -49,8 +49,8 @@ public abstract class LearningAgent{
     
     public LearningAgent(Problem prob, AgentType type, int[] objectivesToUse){
         this.type = type;
-        this.objectivesToUse = objectivesToUse;
-        nrObjectives = objectivesToUse.length;
+        this.objectivesToUse = objectivesToUse;  //对于noshaping而言，只有一个0
+        nrObjectives = objectivesToUse.length;   //对于noshaping，长度为1
         
         maxNrTiles = 4096;
         nrTiles = 14;
@@ -253,6 +253,12 @@ public abstract class LearningAgent{
         }
     }
     
+    
+    /**
+     * 这里就是直接选出最好的action，对应就是最大的Q值
+     * @param Qs 每个action对应的最大Q值
+     * @return
+     */
     protected int actionSelection(double[][] Qs){
         double best = -Double.MAX_VALUE;
         ArrayList<Integer> ibest = new ArrayList <Integer>();
