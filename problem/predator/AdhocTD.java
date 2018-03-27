@@ -14,19 +14,23 @@ public class AdhocTD extends Predator{
 	
 	private boolean informAction;
 	private AdviceUtil adviceObject = null;
-	private Map<double[], Integer> visitTable = new HashMap<>();
-	private List<double[]> advisedState = new ArrayList<>();
+	private Map<String, Integer> visitTable = new HashMap<>();
+	private List<String> advisedState = new ArrayList<>();
     
 	public AdhocTD(PredatorWorld pw, AgentType type, int[] objectives, int size, int x, int y){
         super(pw, type, objectives, size, x, y);
         
-        budgetAsk = 100;
-        budgetAdvise = 100;
+        budgetAsk = 1000;
+        budgetAdvise = 1000;
         spentBudgetAsk = 0;
         spentBudgetAdvise = 0;
         informAction = false;
-        
     }
+	
+	public String getStateStr(double[] state){
+		String stateStr = state[0]+","+state[1]+","+state[2]+","+state[3];
+		return stateStr;
+	}
 	
 	/**
 	 * 返回访问过的state的次数
@@ -34,7 +38,14 @@ public class AdhocTD extends Predator{
 	 * @return 访问的次数，如果没有访问则为0
 	 */
 	public int numberVisits(double[] state){
-		return visitTable.getOrDefault(state, 0);
+		return visitTable.getOrDefault(getStateStr(state), 0);
+	}
+	
+	public void putvisit(double[] state){
+        //添加该state到访问过的state中去
+//		System.out.println("visittable length:"+visitTable.size()+"--now state:"+getStateStr(state));
+		visitTable.put(getStateStr(state), numberVisits(state)+1);
+
 	}
 	
     
@@ -44,14 +55,15 @@ public class AdhocTD extends Predator{
      * @return true即可以请求建议，false则不能
      */
     public boolean checkAsk(double[] state){
-    	if(!advisedState.contains(state)){  //如果当前的game已经给这个提供建议了则不需要再次提供
+    	if(!advisedState.contains(getStateStr(state))){  //如果当前的game已经给这个提供建议了则不需要再次提供
     		int numberVisits =  numberVisits(state);
         	if(numberVisits == 0){
         		return true;
         	}
         	
             double param = 0.5;
-
+            
+//            System.out.println("checkAsk numberVisits:"+numberVisits);
             double prob = Math.pow((1+param), -1*Math.sqrt(numberVisits));  //计算询问的概率
             
             if(Math.random() < prob){
@@ -90,6 +102,8 @@ public class AdhocTD extends Predator{
         double diffQ = Math.abs(maxQ - minQ);
         
         double param = 1.5;
+        
+//        System.out.println("checkAdvise numberVisits:"+numberVisits);
 
         double value = (Math.sqrt(numberVisits) * diffQ);
         
@@ -99,6 +113,7 @@ public class AdhocTD extends Predator{
 //        System.out.println("adhoctd checkAdvise");
 
         if(now_prob < prob){
+//        	System.out.println("value:"+value+"--prob:"+prob+"--now_prob:"+now_prob+"--diffQ:"+diffQ);
             int advisedAction = actionSelection(Qs);
             return advisedAction;
         }            
@@ -141,7 +156,7 @@ public class AdhocTD extends Predator{
     @Override
     public void setupAdvising(int agentIndex, Animal[] allAgents){
     	adviceObject = new AdviceUtil();
-        
+//        System.out.println("agentindex:"+agentIndex+"---allAgents:"+allAgents.length);
     	List<Animal> advisors = new ArrayList<Animal>();
     	for(int i=0;i<allAgents.length;i++){
     		if(i != agentIndex){
@@ -174,8 +189,23 @@ public class AdhocTD extends Predator{
     	int b = ibest.get(RNG.randomInt(ibest.size()));   //如果有多个最优值，则选取一个action，但是在原文中则是随机选取
         return b;
     }
-    	
+
     
+    @Override
+	public void resetAdvisedStates() {
+//    	if(advisedState.size()>0){
+//        	System.out.println("length:"+advisedState.size());
+//
+//    	}
+    	advisedState = new ArrayList<>();
+	}
+    
+    @Override
+	public int getUsedBudget() {
+		// TODO Auto-generated method stub
+		return spentBudgetAdvise;
+	}
+
     
      /**
      * agent在每次选择action的时候，需要看自己是否需要ask advice，并具备给出advice的能力
@@ -208,8 +238,7 @@ public class AdhocTD extends Predator{
         }
 
         double[] state = getState();
-        //添加该state到访问过的state中去
-        visitTable.put(state, numberVisits(state)+1);
+		putvisit(state);
         
         
         //finds activated weights for each action
@@ -264,7 +293,7 @@ public class AdhocTD extends Predator{
         }
         
         //action selection，agent先看自己是否需要进行请求advice，这里的QS应该用更新后的Qs
-        int action = 0;    //初始化action
+        int action = -1;    //初始化action
         
         if(spentBudgetAsk < budgetAsk){
         	boolean ask = checkAsk(state);
@@ -278,10 +307,11 @@ public class AdhocTD extends Predator{
             	}
             	
             	List<Integer> advised = adviceObject.askAdvice(state, Qs, normalAction);
-//            	System.out.println("ask:"+ask+"---advised:"+advised);
             	if(advised.size() > 0){
+//                	System.out.println("ask:"+ask+"---advised:"+advised);
+
             		try{
-//            			advisedState.add(state);   //将已经advice过的state放进去
+            			advisedState.add(getStateStr(state));   //将已经advice过的state放进去
             			spentBudgetAsk += 1;
             			action = combineAdvice(advised);
             			
@@ -298,7 +328,7 @@ public class AdhocTD extends Predator{
             }
         }
         
-        if(action == 0){  //如果没有给出advice，则
+        if(action == -1){  //如果没有给出advice，则
         	//greedy
             if (RNG.randomDouble() > epsilon) {
                 //adaptive or random objective selection + action selection

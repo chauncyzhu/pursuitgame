@@ -38,4 +38,8 @@ public abstract class Animal extends QLearningAgent{
     
     public abstract void setupAdvising(int agentIndex, Animal[] allAgents);
     
+    public abstract void resetAdvisedStates();
+    
+    public abstract int getUsedBudget();
+
 }

@@ -144,4 +144,16 @@ public class Prey extends Animal {
 		// TODO Auto-generated method stub
 		
 	}
+
+	@Override
+	public void resetAdvisedStates() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public int getUsedBudget() {
+		// TODO Auto-generated method stub
+		return 0;
+	}
 }

@@ -49,7 +49,7 @@ public class PredatorWorld extends Problem{
             Animal a;
             do{
             	//创建捕食者，agent的reward类型由外部指定，
-                a = new Predator(this, type, objectives, size, RNG.randomInt(size), RNG.randomInt(size));
+                a = new AdhocTD(this, type, objectives, size, RNG.randomInt(size), RNG.randomInt(size));
             } while (occupied(a));
             
             this.aPredators[i] = a;
@@ -92,7 +92,11 @@ public class PredatorWorld extends Problem{
                 aPredators[i].y = RNG.randomInt(size);
             } while (occupied(aPredators[i]));
             this.map[aPredators[i].y][aPredators[i].x] = aPredators[i];
+            
+            //将Predators的advisedStates重新设置
+            aPredators[i].resetAdvisedStates();
         }
+              
     }
     
     public boolean occupied(Animal a){
@@ -177,7 +181,11 @@ public class PredatorWorld extends Problem{
             if(isGoalReached()){
                 aPredators[i].reward(1);
             }
+            
+            //取出消耗的budget
+            System.out.print(aPredators[i].getUsedBudget()+"--");
         }
+        System.out.println();
         return iteration;
     }
     
